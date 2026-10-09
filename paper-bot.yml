@@ -1,0 +1,45 @@
+name: Paper Trading Bots
+
+# Runs on GitHub's own servers on a schedule — your computer/browser can be
+# fully off and this still runs. GitHub's minimum schedule granularity is
+# every 5 minutes; hourly is plenty here since signals are based on 1h candles.
+on:
+  schedule:
+    - cron: '5 * * * *'   # 5 minutes past every hour, UTC
+  workflow_dispatch: {}     # adds a manual "Run workflow" button too
+
+permissions:
+  contents: write   # needed so the workflow can commit the updated state.json back
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install python-crypto-dot-com-sdk
+
+      - name: Run paper trading bot
+        run: python paper_bot.py
+        env:
+          # Optional repository variables (Settings > Secrets and variables > Actions > Variables).
+          # Leave any of them unset to use the default.
+          #   BOT_DIRECTION    LONG (default), SHORT or BOTH
+          #   BOT_TAKE_PROFIT  a percent, e.g. 5 (unset or 0 = off)
+          #   BOT_STRATEGIES   e.g. RSI,MACROSS (unset = all three bots)
+          BOT_DIRECTION: ${{ vars.BOT_DIRECTION }}
+          BOT_TAKE_PROFIT: ${{ vars.BOT_TAKE_PROFIT }}
+          BOT_STRATEGIES: ${{ vars.BOT_STRATEGIES }}
+
+      - name: Commit updated state
+        run: |
+          git config user.name "paper-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state.json
+          git diff --quiet --cached || git commit -m "Paper bot run: $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
