@@ -1,5 +1,5 @@
 from crypto_pulse.market_data import fetch_historical_klines
-from crypto_pulse.strategy import generate_signal
+from crypto_pulse.strategy import signal_details
 
 
 class CryptoPulseTrader:
@@ -15,13 +15,15 @@ class CryptoPulseTrader:
             raise ValueError(f"No market data returned for {self.symbol}.")
 
         closes = [float(candle["close"]) for candle in candles]
-        signal = generate_signal(closes)
+        details = signal_details(closes)
         last_price = closes[-1]
 
         return {
             "symbol": self.symbol,
             "interval": self.interval,
             "last_price": last_price,
-            "signal": signal,
+            "signal": details["signal"],
+            "signal_details": details,
             "candles": len(candles),
+            "candles_data": candles,
         }
