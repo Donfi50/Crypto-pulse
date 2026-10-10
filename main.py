@@ -1,83 +1,44 @@
 import argparse
-from typing import List
 
 from crypto_pulse.config import DEFAULT_INTERVAL, DEFAULT_LIMIT, DEFAULT_SYMBOL
-from crypto_pulse.scanner_report import export_scanner_report
-from crypto_pulse.trader import CryptoPulseTrader
+from crypto_pulse.unified_scanner import export_unified_report, print_unified_dashboard, scan_with_unified_scoring
 
 
-def parse_symbols(raw_symbols):
-    if raw_symbols is None:
+def parse_symbols(raw_input):
+    """Parse comma-separated or space-separated symbol list."""
+    if raw_input is None:
         return [DEFAULT_SYMBOL]
-    if isinstance(raw_symbols, str):
-        return [symbol.strip() for symbol in raw_symbols.split(",") if symbol.strip()]
-    return [str(symbol).strip() for symbol in raw_symbols if str(symbol).strip()]
+    if isinstance(raw_input, str):
+        return [s.strip().upper() for s in raw_input.replace(",", " ").split() if s.strip()]
+    return [str(s).strip().upper() for s in raw_input if str(s).strip()]
 
 
-def scan_symbols(symbols: List[str], interval: str = DEFAULT_INTERVAL, limit: int = DEFAULT_LIMIT):
-    """Scan multiple symbols and return ranked signal results."""
-    results = []
-    for symbol in symbols:
-        trader = CryptoPulseTrader(symbol=symbol, interval=interval, limit=limit)
-        result = trader.run()
-        details = result["signal_details"]
-
-        results.append({
-            "symbol": symbol,
-            "signal": result["signal"],
-            "last_price": result["last_price"],
-            "short_sma": details["short_sma"],
-            "long_sma": details["long_sma"],
-            "ema_fast": details["ema_fast"],
-            "ema_slow": details["ema_slow"],
-            "rsi": details["rsi"],
-            "candles": result["candles"],
-        })
-
-    priority = {"BUY": 0, "HOLD": 1, "SELL": 2}
-    results.sort(key=lambda item: (priority.get(item["signal"], 99), -abs(item["rsi"] - 50)))
-    return results
-
-
-def print_dashboard(results):
-    """Display a compact multi-symbol dashboard in the terminal."""
-    print("\nCrypto Pulse Scanner")
-    print("=" * 118)
-    print(f"{'Symbol':<12} {'Signal':<6} {'Price':>14} {'Short SMA':>12} {'Long SMA':>12} {'RSI':>8}")
-    print("-" * 118)
-
-    for row in results:
-        print(
-            f"{row['symbol']:<12} "
-            f"{row['signal']:<6} "
-            f"{row['last_price']:>12.2f} "
-            f"{row['short_sma']:>12.2f} "
-            f"{row['long_sma']:>12.2f} "
-            f"{row['rsi']:>7.2f}"
-        )
-
-    print("=" * 118)
-
-
-def scan_cli():
-    parser = argparse.ArgumentParser(description="Scan multiple crypto symbols for trade signals.")
+def main():
+    parser = argparse.ArgumentParser(
+        description="Crypto-pulse unified scanner: Technical + AI signals with confidence scoring."
+    )
     parser.add_argument(
         "--symbols",
         default=DEFAULT_SYMBOL,
-        help="Comma-separated symbols, e.g. BTCUSDT,ETHUSDT,SOLUSDT",
+        help="Symbols to scan (comma or space separated). Default: BTCUSDT",
     )
-    parser.add_argument("--interval", default=DEFAULT_INTERVAL, help="Candle interval, e.g. 1h, 4h")
+    parser.add_argument("--interval", default=DEFAULT_INTERVAL, help="Candle interval (1m, 5m, 1h, 4h, 1d)")
     parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT, help="Number of candles per symbol")
-    parser.add_argument("--csv-output", default="scanner_report.csv", help="Where to save the scanner CSV report")
+    parser.add_argument("--csv-output", default="unified_report.csv", help="CSV export path")
+    parser.add_argument("--json-output", default="unified_report.json", help="JSON export path")
     args = parser.parse_args()
 
     symbols = parse_symbols(args.symbols)
-    results = scan_symbols(symbols, interval=args.interval, limit=args.limit)
-    print_dashboard(results)
+    print(f"\nScanning {len(symbols)} symbols: {', '.join(symbols)}")
+    print(f"Interval: {args.interval}, Limit: {args.limit}")
 
-    exported_file = export_scanner_report(results, args.csv_output)
-    print(f"\nCSV report saved to: {exported_file}")
+    results = scan_with_unified_scoring(symbols, interval=args.interval, limit=args.limit)
+    print_unified_dashboard(results)
+
+    csv_file, json_file = export_unified_report(results, args.csv_output, args.json_output)
+    print(f"CSV report saved to: {csv_file}")
+    print(f"JSON report saved to: {json_file}")
 
 
 if __name__ == "__main__":
-    scan_cli()
+    main()
