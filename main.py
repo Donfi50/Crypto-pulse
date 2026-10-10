@@ -1,4 +1,5 @@
 from crypto_pulse.backtester import backtest_strategy
+from crypto_pulse.exporter import export_candles
 from crypto_pulse.config import DEFAULT_SYMBOL
 from crypto_pulse.trader import CryptoPulseTrader
 
@@ -14,6 +15,9 @@ def main():
     print(f"Long SMA: {result['signal_details']['long_sma']:.2f}")
     print(f"RSI: {result['signal_details']['rsi']:.2f}")
     print(f"Candles analyzed: {result['candles']}")
+
+    csv_path = export_candles(result["candles_data"])
+    print(f"Candles exported to: {csv_path}")
 
     backtest = backtest_strategy(result["candles_data"])
     print(f"Backtest final balance: ${backtest['final_balance']:.2f}")
