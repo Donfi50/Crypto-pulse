@@ -1,0 +1,64 @@
+import argparse
+import json
+from pathlib import Path
+
+from crypto_pulse.config import DEFAULT_INTERVAL, DEFAULT_LIMIT, DEFAULT_SYMBOL
+from crypto_pulse.exporter import export_candles
+from crypto_pulse.trader import CryptoPulseTrader
+from crypto_pulse.backtester import backtest_strategy
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Crypto-pulse trading signal runner")
+    parser.add_argument("--symbol", default=DEFAULT_SYMBOL, help="Trading pair symbol, e.g. BTCUSDT")
+    parser.add_argument("--interval", default=DEFAULT_INTERVAL, help="Candles interval, e.g. 1h or 4h")
+    parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT, help="Number of candles to fetch")
+    parser.add_argument("--csv-output", default="market_data.csv", help="Path to export candle data CSV")
+    parser.add_argument("--json-output", default="signal_report.json", help="Path to save JSON report")
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    trader = CryptoPulseTrader(symbol=args.symbol, interval=args.interval, limit=args.limit)
+    result = trader.run()
+
+    details = result["signal_details"]
+    backtest = backtest_strategy(result["candles_data"])
+
+    report = {
+        "symbol": result["symbol"],
+        "interval": result["interval"],
+        "last_price": result["last_price"],
+        "signal": result["signal"],
+        "short_sma": details["short_sma"],
+        "long_sma": details["long_sma"],
+        "ema_fast": details["ema_fast"],
+        "ema_slow": details["ema_slow"],
+        "rsi": details["rsi"],
+        "candles": result["candles"],
+        "backtest_final_balance": backtest["final_balance"],
+        "backtest_trades": backtest["trades"],
+    }
+
+    csv_path = export_candles(result["candles_data"], args.csv_output)
+    json_path = Path(args.json_output)
+    json_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+
+    print(f"Symbol: {report['symbol']}")
+    print(f"Last price: {report['last_price']:.2f}")
+    print(f"Signal: {report['signal']}")
+    print(f"Short SMA: {report['short_sma']:.2f}")
+    print(f"Long SMA: {report['long_sma']:.2f}")
+    print(f"EMA Fast: {report['ema_fast']:.2f}")
+    print(f"EMA Slow: {report['ema_slow']:.2f}")
+    print(f"RSI: {report['rsi']:.2f}")
+    print(f"Candles analyzed: {report['candles']}")
+    print(f"Candle CSV exported to: {csv_path}")
+    print(f"JSON report saved to: {json_path}")
+    print(f"Backtest final balance: ${report['backtest_final_balance']:.2f}")
+    print(f"Trades executed: {report['backtest_trades']}")
+
+
+if __name__ == "__main__":
+    main()
