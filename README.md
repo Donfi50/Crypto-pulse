@@ -17,12 +17,11 @@ The project is intentionally simple and modular so you can extend it with:
 - Keep the project easy to run and extend
 
 ## Current structure
-- `main.py` runs a basic signal check
-- `crypto_pulse/market_data.py` fetches market candles from Binance
-- `crypto_pulse/strategy.py` generates simple buy/sell/hold signals
-- `crypto_pulse/trader.py` combines the pipeline into one workflow
+- `main.py` runs the crypto signal scanner
+- `crypto_pulse/` contains the market data, strategy, and reporting modules
+- `studio_app.py` is an experimental web studio for AI-assisted video planning and game prototyping
 
-## Setup
+## Run the crypto scanner
 
 1. Create a virtual environment
 
@@ -37,26 +36,29 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-3. Run the project
+3. Run the scanner
 
 ```bash
 python main.py
 ```
 
-## Environment variables
-Copy the example file and adjust the values if needed:
+## Run the creative studio
+
+The Streamlit app can create video storyboards and text-to-video prompts, or game design briefs and starter HTML code. It does not render video files, and it does not execute generated game code.
+
+1. Install the requirements above.
+2. Set an OpenAI-compatible API key in `OPENAI_API_KEY` (keep it private).
+3. Optionally set `OPENAI_MODEL` (defaults to `gpt-4o-mini`) and `OPENAI_BASE_URL` (defaults to `https://api.openai.com/v1`).
+4. Start the website locally:
 
 ```bash
-cp .env.example .env
+streamlit run studio_app.py
 ```
 
-## Example output
+For Streamlit Community Cloud, deploy this repository and add `OPENAI_API_KEY` under **App settings → Secrets**. Never commit API keys to the repository.
 
-```text
-Symbol: BTCUSDT
-Last price: 64123.45
-Signal: BUY
-```
+## Environment variables
+The crypto scanner can use the `.env` file described in `.env.example`. The creative studio reads its API configuration from environment variables or Streamlit secrets.
 
 ## Notes
-This is a starter implementation. It does not provide live trading or financial advice. It is intended to be a foundation for experimentation and learning.
+The crypto scanner is a starter implementation and does not provide financial advice. The creative studio is an experimental scaffold; actual video rendering requires connecting a video-generation provider. Review AI-generated content and code before using it.
