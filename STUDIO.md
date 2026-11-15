@@ -4,7 +4,8 @@
 
 ## What it can do
 - **Video:** produce a timed storyboard, visual direction, and shot-by-shot text-to-video prompts. It does not render a video file; connect a video model/provider for that.
-- **Game:** produce a game design brief and, when requested by the model, self-contained HTML starter code. The app displays generated code as text and does not execute it.
+- **Game:** produce a game design brief and self-contained HTML starter code when supported by the model. The site lets you download the HTML file, but does not execute or preview generated code.
+- Download each creation plan as Markdown. The latest result remains available during the current Streamlit session.
 
 ## Configure
 

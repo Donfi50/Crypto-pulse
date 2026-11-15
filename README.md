@@ -57,6 +57,8 @@ streamlit run studio_app.py
 
 For Streamlit Community Cloud, deploy this repository and add `OPENAI_API_KEY` under **App settings → Secrets**. Never commit API keys to the repository.
 
+The latest result is kept in the current Streamlit session. Download the plan as Markdown; game results with a fenced HTML block also have a separate HTML download. Generated HTML is not executed or previewed by the site.
+
 ## Environment variables
 The crypto scanner can use the `.env` file described in `.env.example`. The creative studio reads its API configuration from environment variables or Streamlit secrets.
 

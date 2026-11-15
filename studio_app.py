@@ -1,4 +1,6 @@
 import os
+import re
+from datetime import datetime, timezone
 
 import requests
 import streamlit as st
@@ -100,6 +102,11 @@ def build_instructions(kind, description, selected_style, selected_detail):
     )
 
 
+def extract_html_prototype(text):
+    match = re.search(r"```html\s*([\s\S]*?)```", text, re.IGNORECASE)
+    return match.group(1).strip() if match else None
+
+
 if submitted:
     if not prompt.strip():
         st.warning("Add a short description of what you want to create.")
@@ -124,12 +131,16 @@ if submitted:
                 )
                 response.raise_for_status()
                 result = response.json()["choices"][0]["message"]["content"]
-                st.subheader("Your creation plan")
-                st.markdown(result)
-                if creation_type == "Game":
-                    st.info("To try the prototype, copy its HTML code block into a local `index.html` file and open it in your browser. Generated code is shown as text and is not executed by this site.")
-                else:
-                    st.info("This is a storyboard and set of generation prompts—not a rendered video. A video-generation provider can be connected in a next step.")
+                if not isinstance(result, str) or not result.strip():
+                    raise ValueError("The AI service returned empty content.")
+                st.session_state.latest_creation = {
+                    "kind": creation_type,
+                    "prompt": prompt.strip(),
+                    "style": style,
+                    "detail": detail,
+                    "result": result.strip(),
+                    "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+                }
             except requests.exceptions.HTTPError as error:
                 message = "The AI service rejected the request. Check your API key, model access, and account limits."
                 try:
@@ -143,6 +154,44 @@ if submitted:
                 st.error(f"Could not reach the AI service: {error}")
             except (KeyError, IndexError, TypeError, ValueError):
                 st.error("The AI service returned an unexpected response. Please try again.")
+
+creation = st.session_state.get("latest_creation")
+if creation:
+    st.subheader("Your creation plan")
+    st.caption(f"{creation['kind']} · {creation['created_at']}")
+    st.markdown(creation["result"])
+
+    safe_name = re.sub(r"[^a-z0-9]+", "-", creation["prompt"].lower()).strip("-")[:40] or "creation"
+    plan_markdown = (
+        f"# {creation['kind']} creation plan\n\n"
+        f"**Idea:** {creation['prompt']}\n\n"
+        f"**Style:** {creation['style']}\n\n"
+        f"**Format:** {creation['detail']}\n\n"
+        f"**Created:** {creation['created_at']}\n\n---\n\n{creation['result']}\n"
+    )
+    st.download_button(
+        "Download creation plan",
+        data=plan_markdown,
+        file_name=f"{safe_name}-plan.md",
+        mime="text/markdown",
+        key="download-plan",
+    )
+
+    if creation["kind"] == "Game":
+        prototype = extract_html_prototype(creation["result"])
+        if prototype:
+            st.download_button(
+                "Download HTML prototype",
+                data=prototype,
+                file_name=f"{safe_name}.html",
+                mime="text/html",
+                key="download-prototype",
+            )
+            st.info("The HTML file is downloadable but is not executed or previewed on this site. Review generated code before opening it.")
+        else:
+            st.info("No fenced HTML prototype was included. You can still download the game design plan above.")
+    else:
+        st.info("This is a storyboard and set of generation prompts—not a rendered video. A video-generation provider can be connected in a next step.")
 
 st.divider()
 st.markdown('<p class="note">CreateLab is a starter studio. AI outputs may need review; generated game code is not run on this site.</p>', unsafe_allow_html=True)
