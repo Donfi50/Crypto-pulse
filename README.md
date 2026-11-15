@@ -16,9 +16,9 @@ Optional: set `OPENAI_MODEL` (defaults to `gpt-4o-mini`), `OPENAI_BASE_URL` (def
 
 ## Accounts and project dashboard
 
-CreateLab supports account registration, sign-in, and sign-out. Passwords are stored as salted PBKDF2-SHA256 hashes, never as plaintext. Each project is associated with its owner; all listing, opening, counts, and deletion are scoped to the signed-in user. SQLite schema updates automatically when the app starts. Existing projects from the earlier shared database are left unowned and hidden rather than assigned to an account.
+CreateLab supports registration, sign-in/sign-out, account details, and password changes after verifying the current password. Passwords are stored as salted PBKDF2-SHA256 hashes, never as plaintext. Each project is associated with its owner; dashboard reads, counts, and deletion are scoped to the signed-in user. SQLite schema updates automatically when the app starts. Older shared projects without a known owner remain unassigned and hidden.
 
-This is an initial account system, not a complete production identity service: email verification, password reset, MFA, and robust cross-device session management are not included. Protect deployments with HTTPS, keep database files private, and use rate limiting and durable database storage before public production use. Anyone who can access the SQLite file or database backup can access its contents.
+This is an initial account system, not a complete production identity service: email verification, password reset, MFA, and robust cross-device session management are not included. Protect deployments with HTTPS, keep database files private, and use rate limiting and durable database storage before public production use.
 
 ## Features and limits
 

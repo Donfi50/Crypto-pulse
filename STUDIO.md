@@ -6,8 +6,9 @@ CreateLab is a Streamlit app for AI-assisted video pre-production and game conce
 
 - Account registration, sign-in, and sign-out.
 - Salted PBKDF2-SHA256 password hashes; plaintext passwords are never saved.
+- Change password after confirming the current password.
 - SQLite-backed user accounts and project records.
-- Dashboard browsing, filtering, downloading, and deletion, scoped to the signed-in account.
+- Dashboard browsing, filtering, downloading, and deletion scoped to the signed-in account.
 - Video storyboard and prompt generation; optional downloadable HTML game prototype (not executed by the app).
 
 ## Setup

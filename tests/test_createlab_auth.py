@@ -36,6 +36,21 @@ class AccountAuthTests(unittest.TestCase):
         self.assertTrue(createlab_auth.verify_password("same password", first))
         self.assertFalse(createlab_auth.verify_password("wrong password", first))
 
+    def test_change_password_requires_old_password_and_updates_login(self):
+        user = createlab_auth.register("person@example.com", "Person", "correct horse battery", self.db_path)
+        with self.assertRaisesRegex(ValueError, "Current password"):
+            createlab_auth.change_password(user["id"], "incorrect password", "a brand new password", self.db_path)
+        createlab_auth.change_password(user["id"], "correct horse battery", "a brand new password", self.db_path)
+        self.assertIsNone(createlab_auth.authenticate("person@example.com", "correct horse battery", self.db_path))
+        self.assertIsNotNone(createlab_auth.authenticate("person@example.com", "a brand new password", self.db_path))
+
+    def test_change_password_rejects_reuse_and_short_password(self):
+        user = createlab_auth.register("person@example.com", "Person", "correct horse battery", self.db_path)
+        with self.assertRaisesRegex(ValueError, "different"):
+            createlab_auth.change_password(user["id"], "correct horse battery", "correct horse battery", self.db_path)
+        with self.assertRaisesRegex(ValueError, "at least"):
+            createlab_auth.change_password(user["id"], "correct horse battery", "too short", self.db_path)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -22,11 +22,7 @@ def connect(path=None):
 
 
 def initialize_database(path=None):
-    """Create tables and add owner_id to older shared-project databases.
-
-    Existing projects are left unowned during migration and are not exposed in
-    any signed-in user's dashboard.
-    """
+    """Create tables and add owner_id to older shared-project databases."""
     with connect(path) as connection:
         connection.execute("PRAGMA journal_mode = WAL")
         connection.execute(
@@ -52,8 +48,7 @@ def initialize_database(path=None):
         )
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(creations)")}
         if "owner_id" not in columns:
-            # Old shared projects have no trustworthy owner. Keep them private
-            # from accounts instead of assigning them to an arbitrary user.
+            # Old shared projects have no trustworthy owner. Do not assign them to an account.
             connection.execute(
                 "ALTER TABLE creations ADD COLUMN owner_id TEXT REFERENCES users(id) ON DELETE CASCADE"
             )
@@ -97,6 +92,15 @@ def get_user_by_id(user_id, path=None):
             "SELECT id, email, display_name, created_at FROM users WHERE id = ?", (user_id,)
         ).fetchone()
     return dict(row) if row else None
+
+
+def update_password_hash(user_id, password_hash, path=None):
+    initialize_database(path)
+    with connect(path) as connection:
+        cursor = connection.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id)
+        )
+    return cursor.rowcount == 1
 
 
 def save_creation(creation, path=None):

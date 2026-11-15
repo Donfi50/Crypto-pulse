@@ -142,7 +142,6 @@ def render_auth():
 
 user = st.session_state.get("user")
 if user:
-    # Refresh the account from the database every rerun. Deleted accounts lose access.
     user = createlab_db.get_user_by_id(user.get("id"))
     if user is None:
         st.session_state.pop("user", None)
@@ -163,7 +162,7 @@ if "selected_creation_id" not in st.session_state:
 with st.sidebar:
     st.markdown("## ✨ CreateLab")
     st.caption(f"Signed in as {user['display_name']}")
-    st.radio("Workspace", ["Create", "Dashboard"], key="page")
+    st.radio("Workspace", ["Create", "Dashboard", "Account"], key="page")
     if st.button("Sign out", use_container_width=True):
         st.session_state.pop("user", None)
         st.session_state.pop("selected_creation_id", None)
@@ -175,13 +174,35 @@ with st.sidebar:
     st.caption("Video outputs are storyboards, not rendered clips. Generated HTML is never executed by this app.")
 
 st.markdown(
-    f'<div class="hero"><div class="eyebrow">Creative workspace</div>'
-    f'<h1>Make something <span style="color:#a78bfa">unreal.</span></h1>'
-    f'<p>Welcome back, {user["display_name"]}. Turn your ideas into video plans and game concepts.</p></div>',
+    '<div class="hero"><div class="eyebrow">Creative workspace</div>'
+    '<h1>Make something <span style="color:#a78bfa">unreal.</span></h1>'
+    '<p>Turn your ideas into video plans and game concepts.</p></div>',
     unsafe_allow_html=True,
 )
+st.write(f"Welcome back, {user['display_name']}.")
 
-if st.session_state.page == "Create":
+if st.session_state.page == "Account":
+    st.subheader("Account settings")
+    st.write(f"**Name:** {user['display_name']}")
+    st.write(f"**Email:** {user['email']}")
+    st.caption(f"Account created {user['created_at']}")
+    st.divider()
+    st.markdown("#### Change password")
+    with st.form("change_password_form"):
+        current_password = st.text_input("Current password", type="password", autocomplete="current-password")
+        new_password = st.text_input("New password (at least 12 characters)", type="password", autocomplete="new-password")
+        confirm_new_password = st.text_input("Confirm new password", type="password", autocomplete="new-password")
+        password_submitted = st.form_submit_button("Update password", type="primary")
+    if password_submitted:
+        if new_password != confirm_new_password:
+            st.error("The new passwords do not match.")
+        else:
+            try:
+                createlab_auth.change_password(user["id"], current_password, new_password)
+                st.success("Password updated. Use the new password the next time you sign in.")
+            except ValueError as error:
+                st.error(str(error))
+elif st.session_state.page == "Create":
     st.subheader("Start a new project")
     with st.form("creation_form"):
         kind = st.radio("Project type", ["Video", "Game"], horizontal=True)
@@ -294,4 +315,4 @@ else:
                 st.rerun()
 
 st.divider()
-st.caption("Your account and projects are stored in SQLite. This starter does not include email verification, password reset, or multi-factor authentication. Use HTTPS and a persistent database volume for deployment.")
+st.caption("Your account and projects are stored in SQLite. Email verification, password reset, and MFA are not included. Use HTTPS and a persistent database volume for deployment.")
