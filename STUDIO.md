@@ -4,10 +4,11 @@ CreateLab is a Streamlit app for AI-assisted video pre-production and game conce
 
 ## Features
 
-- Generate a timed video storyboard or game design and optional HTML prototype.
-- Dashboard to browse, filter, open, download, and delete saved projects.
-- SQLite persistence for generated project prompts and results.
-- Configurable OpenAI-compatible chat-completions endpoint.
+- Account registration, sign-in, and sign-out.
+- Salted PBKDF2-SHA256 password hashes; plaintext passwords are never saved.
+- SQLite-backed user accounts and project records.
+- Dashboard browsing, filtering, downloading, and deletion, scoped to the signed-in account.
+- Video storyboard and prompt generation; optional downloadable HTML game prototype (not executed by the app).
 
 ## Setup
 
@@ -21,12 +22,12 @@ export CREATELAB_DB_PATH="data/createlab.sqlite3"
 streamlit run studio_app.py
 ```
 
-On Windows PowerShell, set the API key with `$env:OPENAI_API_KEY="your-key-here"`. Never commit credentials.
+On Windows PowerShell, set the API key with `$env:OPENAI_API_KEY="your-key-here"`. Never commit credentials. SQLite is initialized automatically at `data/createlab.sqlite3` unless `CREATELAB_DB_PATH` is set.
 
-The SQLite database is automatically initialized at `data/createlab.sqlite3` by default. Set `CREATELAB_DB_PATH` to a different file path if needed. Run database unit tests with `python -m unittest discover -s tests`.
+Run the test suite with `python -m unittest discover -s tests`.
 
-## Important deployment and security notes
+## Security and deployment limitations
 
-There are no user accounts yet, so projects are shared by all visitors using the same database. Do not deploy this publicly with private user content until authentication and authorization are added. SQLite persistence depends on durable storage; hosted ephemeral filesystems can lose database data on restart or redeploy. Configure a persistent disk or managed database for production.
+This starter does not include email verification, password reset, MFA, or production-grade login rate limiting. Use HTTPS in deployment and do not expose the database file or backups. For public production, add rate limiting, recovery/verification flows, monitoring, and a managed durable database. SQLite is suitable for a small single-instance deployment, not a horizontally scaled service. Existing projects from the previous shared database are migrated as unowned and are not shown to users.
 
-The app creates text plans and prompts; it does not render video files. Generated HTML is offered as a download only and is never executed by the app. Review generated content and code before use.
+The app produces video storyboards rather than rendered video. Generated HTML is downloadable only; the app does not execute or preview it.

@@ -12,19 +12,25 @@ export OPENAI_API_KEY="your-key-here"  # PowerShell: $env:OPENAI_API_KEY="your-k
 streamlit run studio_app.py
 ```
 
-Optional API configuration: `OPENAI_MODEL` (defaults to `gpt-4o-mini`) and `OPENAI_BASE_URL` (defaults to `https://api.openai.com/v1`).
+Optional: set `OPENAI_MODEL` (defaults to `gpt-4o-mini`), `OPENAI_BASE_URL` (defaults to `https://api.openai.com/v1`), or `CREATELAB_DB_PATH` (defaults to `data/createlab.sqlite3`).
 
-### Dashboard and project storage
+## Accounts and project dashboard
 
-CreateLab now includes a dashboard for browsing and filtering saved projects, downloading plans, and deleting projects. Project metadata and generated text are stored in SQLite at `data/createlab.sqlite3` by default. Set `CREATELAB_DB_PATH` to choose another SQLite file. The database is initialized automatically; local database files are ignored by Git.
+CreateLab supports account registration, sign-in, and sign-out. Passwords are stored as salted PBKDF2-SHA256 hashes, never as plaintext. Each project is associated with its owner; all listing, opening, counts, and deletion are scoped to the signed-in user. SQLite schema updates automatically when the app starts. Existing projects from the earlier shared database are left unowned and hidden rather than assigned to an account.
 
-This starter has no login or user isolation: anyone using the same deployed app/database can see the same saved projects. Use a private deployment until authentication and per-user access controls are implemented. Streamlit hosting filesystems may be temporary; use a persistent disk or managed database for production deployments.
+This is an initial account system, not a complete production identity service: email verification, password reset, MFA, and robust cross-device session management are not included. Protect deployments with HTTPS, keep database files private, and use rate limiting and durable database storage before public production use. Anyone who can access the SQLite file or database backup can access its contents.
 
-Video generation currently produces storyboards and prompts, not rendered video files. Game HTML is downloadable but is not executed or previewed by the app. Review generated content and code before using it.
+## Features and limits
 
-## Deploy on Streamlit Community Cloud
+- Generate video storyboards and prompts; actual video rendering is not connected.
+- Generate game plans and optionally download HTML; the app never executes generated code.
+- Browse, filter, download, and delete your own saved projects.
 
-Select this repository, the `main` branch, and `studio_app.py` as the entry point. Add `OPENAI_API_KEY` in app settings under **Secrets**. For reliable long-term project storage, configure a persistent volume/database; the default local SQLite file may not persist across redeploys.
+Run unit tests with:
+
+```bash
+python -m unittest discover -s tests
+```
 
 ## Crypto scanner
 
