@@ -1,6 +1,7 @@
 import os
 import re
 from datetime import datetime, timezone
+from uuid import uuid4
 
 import requests
 import streamlit as st
@@ -8,6 +9,7 @@ import streamlit as st
 
 API_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
 MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+MAX_SAVED_CREATIONS = 10
 
 
 st.set_page_config(
@@ -37,6 +39,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+if "creations" not in st.session_state:
+    st.session_state.creations = []
+
 with st.sidebar:
     st.markdown("## CreateLab")
     creation_type = st.radio("What are you making?", ["Video", "Game"], horizontal=True)
@@ -45,7 +50,28 @@ with st.sidebar:
     st.caption(f"Model: `{MODEL}`")
     st.caption("Your API key stays on the server and is never shown in the page.")
     st.divider()
-    st.caption("Video rendering is not connected yet. This starter creates a production-ready storyboard and prompts; connect a video provider to render clips.")
+    st.markdown("### Recent creations")
+    if st.session_state.creations:
+        project_options = {
+            item["id"]: f"{item['kind']} · {item['prompt'][:32]}{'…' if len(item['prompt']) > 32 else ''}"
+            for item in st.session_state.creations
+        }
+        selected_id = st.selectbox(
+            "Open a recent project",
+            options=list(project_options),
+            format_func=lambda project_id: project_options[project_id],
+            label_visibility="collapsed",
+            key="selected_creation_id",
+        )
+        if st.button("Clear session history", use_container_width=True):
+            st.session_state.creations = []
+            st.session_state.pop("selected_creation_id", None)
+            st.rerun()
+    else:
+        selected_id = None
+        st.caption("Your generated plans will appear here for this session.")
+    st.divider()
+    st.caption("Video rendering is not connected yet. This starter creates storyboards and prompts, not video files.")
 
 with st.form("creation_form"):
     prompt = st.text_area(
@@ -133,7 +159,8 @@ if submitted:
                 result = response.json()["choices"][0]["message"]["content"]
                 if not isinstance(result, str) or not result.strip():
                     raise ValueError("The AI service returned empty content.")
-                st.session_state.latest_creation = {
+                creation = {
+                    "id": str(uuid4()),
                     "kind": creation_type,
                     "prompt": prompt.strip(),
                     "style": style,
@@ -141,6 +168,9 @@ if submitted:
                     "result": result.strip(),
                     "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
                 }
+                st.session_state.creations.insert(0, creation)
+                st.session_state.creations = st.session_state.creations[:MAX_SAVED_CREATIONS]
+                st.session_state.selected_creation_id = creation["id"]
             except requests.exceptions.HTTPError as error:
                 message = "The AI service rejected the request. Check your API key, model access, and account limits."
                 try:
@@ -155,7 +185,11 @@ if submitted:
             except (KeyError, IndexError, TypeError, ValueError):
                 st.error("The AI service returned an unexpected response. Please try again.")
 
-creation = st.session_state.get("latest_creation")
+creation_id = st.session_state.get("selected_creation_id")
+creation = next(
+    (item for item in st.session_state.creations if item["id"] == creation_id),
+    st.session_state.creations[0] if st.session_state.creations else None,
+)
 if creation:
     st.subheader("Your creation plan")
     st.caption(f"{creation['kind']} · {creation['created_at']}")
@@ -174,7 +208,7 @@ if creation:
         data=plan_markdown,
         file_name=f"{safe_name}-plan.md",
         mime="text/markdown",
-        key="download-plan",
+        key=f"download-plan-{creation['id']}",
     )
 
     if creation["kind"] == "Game":
@@ -185,7 +219,7 @@ if creation:
                 data=prototype,
                 file_name=f"{safe_name}.html",
                 mime="text/html",
-                key="download-prototype",
+                key=f"download-prototype-{creation['id']}",
             )
             st.info("The HTML file is downloadable but is not executed or previewed on this site. Review generated code before opening it.")
         else:
@@ -194,4 +228,4 @@ if creation:
         st.info("This is a storyboard and set of generation prompts—not a rendered video. A video-generation provider can be connected in a next step.")
 
 st.divider()
-st.markdown('<p class="note">CreateLab is a starter studio. AI outputs may need review; generated game code is not run on this site.</p>', unsafe_allow_html=True)
+st.markdown('<p class="note">CreateLab is a starter studio. AI outputs may need review; generated game code is not run on this site. Recent creations are stored only in this browser session.</p>', unsafe_allow_html=True)
