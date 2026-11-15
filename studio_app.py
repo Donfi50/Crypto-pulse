@@ -6,96 +6,53 @@ from uuid import uuid4
 import requests
 import streamlit as st
 
+import createlab_db
+
 
 API_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
 MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-MAX_SAVED_CREATIONS = 10
 
-
-st.set_page_config(
-    page_title="CreateLab — AI Video & Game Studio",
-    page_icon="🎬",
-    layout="wide",
-)
+st.set_page_config(page_title="CreateLab — AI Video & Game Studio", page_icon="🎬", layout="wide")
+createlab_db.initialize_database()
 
 st.markdown(
     """
     <style>
       .stApp { background: #0b0d13; color: #eef0f6; }
       [data-testid="stSidebar"] { background: #11141d; }
-      .hero { padding: 2rem 0 1rem; }
-      .hero h1 { font-size: clamp(2.4rem, 5vw, 4rem); letter-spacing: -0.06em; margin: 0; }
-      .hero p { color: #a4a9b8; font-size: 1.1rem; max-width: 700px; }
+      .hero { padding: 1.4rem 0 .7rem; }
+      .hero h1 { font-size: clamp(2.4rem, 5vw, 4rem); letter-spacing: -.06em; margin: 0; }
+      .hero p, .muted { color: #a4a9b8; }
       .eyebrow { color: #a78bfa; text-transform: uppercase; letter-spacing: .16em; font-size: .75rem; font-weight: 700; }
       div[data-testid="stForm"] { border: 1px solid #252938; border-radius: 18px; padding: 1.25rem; background: #11141d; }
-      .note { color: #a4a9b8; font-size: .9rem; }
+      div[data-testid="stMetric"] { background: #11141d; border: 1px solid #252938; padding: 1rem; border-radius: 14px; }
     </style>
-    <div class="hero">
-      <div class="eyebrow">Your creative co-pilot</div>
-      <h1>Make something <span style="color:#a78bfa">unreal.</span></h1>
-      <p>Turn an idea into a video production plan or a game concept and starter code. One prompt is all you need to begin.</p>
-    </div>
     """,
     unsafe_allow_html=True,
 )
 
-if "creations" not in st.session_state:
-    st.session_state.creations = []
+if "page" not in st.session_state:
+    st.session_state.page = "Create"
+if "selected_creation_id" not in st.session_state:
+    st.session_state.selected_creation_id = None
 
+counts = createlab_db.creation_counts()
 with st.sidebar:
-    st.markdown("## CreateLab")
-    creation_type = st.radio("What are you making?", ["Video", "Game"], horizontal=True)
+    st.markdown("## ✨ CreateLab")
+    st.caption("AI video planner & game studio")
+    page = st.radio("Workspace", ["Create", "Dashboard"], key="page")
     st.divider()
-    st.caption("AI settings")
-    st.caption(f"Model: `{MODEL}`")
-    st.caption("Your API key stays on the server and is never shown in the page.")
+    st.caption(f"Configured model: `{MODEL}`")
+    st.caption("Projects are stored in the local SQLite database.")
     st.divider()
-    st.markdown("### Recent creations")
-    if st.session_state.creations:
-        project_options = {
-            item["id"]: f"{item['kind']} · {item['prompt'][:32]}{'…' if len(item['prompt']) > 32 else ''}"
-            for item in st.session_state.creations
-        }
-        selected_id = st.selectbox(
-            "Open a recent project",
-            options=list(project_options),
-            format_func=lambda project_id: project_options[project_id],
-            label_visibility="collapsed",
-            key="selected_creation_id",
-        )
-        if st.button("Clear session history", use_container_width=True):
-            st.session_state.creations = []
-            st.session_state.pop("selected_creation_id", None)
-            st.rerun()
-    else:
-        selected_id = None
-        st.caption("Your generated plans will appear here for this session.")
-    st.divider()
-    st.caption("Video rendering is not connected yet. This starter creates storyboards and prompts, not video files.")
+    st.caption("Video outputs are storyboards and prompts, not rendered clips. Generated HTML is never executed by this app.")
 
-with st.form("creation_form"):
-    prompt = st.text_area(
-        "Describe your idea",
-        placeholder=(
-            "A cozy sci-fi short about a tiny robot discovering a garden on Mars..."
-            if creation_type == "Video"
-            else "A cheerful platform game where a fox collects stars in a forest..."
-        ),
-        max_chars=2000,
-        height=135,
-    )
-    left, right = st.columns(2)
-    with left:
-        style = st.selectbox(
-            "Style",
-            ["Cinematic", "Playful", "Pixel art", "Anime-inspired", "Minimal", "Surprise me"],
-        )
-    with right:
-        if creation_type == "Video":
-            detail = st.selectbox("Video length", ["15 seconds", "30 seconds", "60 seconds"])
-        else:
-            detail = st.selectbox("Game platform", ["Browser (HTML5)", "Mobile", "Desktop"])
-    submitted = st.form_submit_button("✨ Generate with AI", use_container_width=True, type="primary")
+st.markdown(
+    '<div class="hero"><div class="eyebrow">Creative workspace</div>'
+    '<h1>Make something <span style="color:#a78bfa">unreal.</span></h1>'
+    '<p>Turn your ideas into production-ready video plans and game concepts. Your projects are saved in your local database.</p></div>',
+    unsafe_allow_html=True,
+)
 
 
 def get_api_key():
@@ -111,19 +68,15 @@ def get_api_key():
 def build_instructions(kind, description, selected_style, selected_detail):
     if kind == "Video":
         return (
-            "You are a skilled video pre-production assistant. Create a practical, original production plan "
-            "from the user's idea. Include: a compelling title and logline; a concise visual direction; "
-            f"a {selected_detail} storyboard broken into timed shots; camera, lighting, and motion notes; "
-            "a narration/dialogue or sound plan; and a polished text-to-video prompt for each shot. "
-            "Keep the timing within the requested duration. Do not claim to have rendered or attached a video.\n\n"
-            f"Visual style: {selected_style}\nIdea: {description}"
+            "You are a skilled video pre-production assistant. Create a practical, original production plan. "
+            "Include a compelling title and logline, visual direction, a timed storyboard, camera/lighting/motion notes, "
+            "sound or dialogue, and a text-to-video prompt for every shot. Stay within the requested duration; do not claim to render video.\n\n"
+            f"Duration: {selected_detail}\nStyle: {selected_style}\nIdea: {description}"
         )
     return (
-        "You are an expert indie game designer and web game prototyper. Turn the user's idea into a useful "
-        "starter kit. Include: title and one-sentence hook; core gameplay loop; controls; a small first-level "
-        "plan; art and audio direction; and a self-contained HTML/CSS/JavaScript prototype when appropriate. "
-        "If you provide code, put it in one fenced html code block and keep it simple enough to save as index.html. "
-        "Never claim code was tested or executed.\n\n"
+        "You are an expert indie game designer and web game prototyper. Include a title and hook, gameplay loop, "
+        "controls, first level, art/audio direction, and a self-contained HTML/CSS/JavaScript prototype in one fenced html code block. "
+        "Keep it simple enough to save as index.html. Do not claim code was tested or executed.\n\n"
         f"Style: {selected_style}\nTarget platform: {selected_detail}\nIdea: {description}"
     )
 
@@ -133,99 +86,153 @@ def extract_html_prototype(text):
     return match.group(1).strip() if match else None
 
 
-if submitted:
-    if not prompt.strip():
-        st.warning("Add a short description of what you want to create.")
-    elif not get_api_key():
-        st.error("Add an `OPENAI_API_KEY` environment variable (or Streamlit secret) to enable AI generation.")
-        st.code('OPENAI_API_KEY="your-key-here"\nstreamlit run studio_app.py', language="bash")
-    else:
-        with st.spinner("Dreaming it up…"):
-            try:
-                response = requests.post(
-                    f"{API_URL}/chat/completions",
-                    headers={"Authorization": f"Bearer {get_api_key()}"},
-                    json={
-                        "model": MODEL,
-                        "messages": [
-                            {"role": "system", "content": "Be imaginative, specific, and easy to follow."},
-                            {"role": "user", "content": build_instructions(creation_type, prompt.strip(), style, detail)},
-                        ],
-                        "temperature": 0.8,
-                    },
-                    timeout=90,
-                )
-                response.raise_for_status()
-                result = response.json()["choices"][0]["message"]["content"]
-                if not isinstance(result, str) or not result.strip():
-                    raise ValueError("The AI service returned empty content.")
-                creation = {
-                    "id": str(uuid4()),
-                    "kind": creation_type,
-                    "prompt": prompt.strip(),
-                    "style": style,
-                    "detail": detail,
-                    "result": result.strip(),
-                    "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-                }
-                st.session_state.creations.insert(0, creation)
-                st.session_state.creations = st.session_state.creations[:MAX_SAVED_CREATIONS]
-                st.session_state.selected_creation_id = creation["id"]
-            except requests.exceptions.HTTPError as error:
-                message = "The AI service rejected the request. Check your API key, model access, and account limits."
-                try:
-                    detail_message = error.response.json().get("error", {}).get("message")
-                    if detail_message:
-                        message = detail_message
-                except (ValueError, AttributeError):
-                    pass
-                st.error(message)
-            except requests.exceptions.RequestException as error:
-                st.error(f"Could not reach the AI service: {error}")
-            except (KeyError, IndexError, TypeError, ValueError):
-                st.error("The AI service returned an unexpected response. Please try again.")
+def safe_filename(prompt, suffix):
+    stem = re.sub(r"[^a-z0-9]+", "-", prompt.lower()).strip("-")[:40] or "creation"
+    return f"{stem}{suffix}"
 
-creation_id = st.session_state.get("selected_creation_id")
-creation = next(
-    (item for item in st.session_state.creations if item["id"] == creation_id),
-    st.session_state.creations[0] if st.session_state.creations else None,
-)
-if creation:
-    st.subheader("Your creation plan")
-    st.caption(f"{creation['kind']} · {creation['created_at']}")
+
+def render_creation(creation):
+    st.subheader(creation["kind"] + " project")
+    st.caption(f"Created {creation['created_at']} · {creation['style']} · {creation['detail']}")
+    st.markdown(f"**Idea:** {creation['prompt']}")
     st.markdown(creation["result"])
-
-    safe_name = re.sub(r"[^a-z0-9]+", "-", creation["prompt"].lower()).strip("-")[:40] or "creation"
-    plan_markdown = (
-        f"# {creation['kind']} creation plan\n\n"
-        f"**Idea:** {creation['prompt']}\n\n"
-        f"**Style:** {creation['style']}\n\n"
-        f"**Format:** {creation['detail']}\n\n"
+    markdown = (
+        f"# {creation['kind']} creation plan\n\n**Idea:** {creation['prompt']}\n\n"
+        f"**Style:** {creation['style']}\n\n**Format:** {creation['detail']}\n\n"
         f"**Created:** {creation['created_at']}\n\n---\n\n{creation['result']}\n"
     )
-    st.download_button(
-        "Download creation plan",
-        data=plan_markdown,
-        file_name=f"{safe_name}-plan.md",
-        mime="text/markdown",
-        key=f"download-plan-{creation['id']}",
-    )
-
-    if creation["kind"] == "Game":
-        prototype = extract_html_prototype(creation["result"])
-        if prototype:
+    left, right = st.columns(2)
+    with left:
+        st.download_button(
+            "Download plan (Markdown)", markdown,
+            file_name=safe_filename(creation["prompt"], "-plan.md"),
+            mime="text/markdown", key=f"plan-{creation['id']}",
+        )
+    prototype = extract_html_prototype(creation["result"]) if creation["kind"] == "Game" else None
+    if prototype:
+        with right:
             st.download_button(
-                "Download HTML prototype",
-                data=prototype,
-                file_name=f"{safe_name}.html",
-                mime="text/html",
-                key=f"download-prototype-{creation['id']}",
+                "Download HTML prototype", prototype,
+                file_name=safe_filename(creation["prompt"], ".html"),
+                mime="text/html", key=f"html-{creation['id']}",
             )
-            st.info("The HTML file is downloadable but is not executed or previewed on this site. Review generated code before opening it.")
+        st.info("Review downloaded HTML before opening it. CreateLab does not execute or preview generated code.")
+    if creation["kind"] == "Video":
+        st.info("This is a storyboard and prompt pack, not a rendered video.")
+
+
+if page == "Create":
+    st.subheader("Start a new project")
+    with st.form("creation_form"):
+        kind = st.radio("Project type", ["Video", "Game"], horizontal=True)
+        prompt = st.text_area(
+            "Describe your idea",
+            placeholder=("A tiny robot discovers a garden on Mars…" if kind == "Video" else "A fox collects stars in an enchanted forest…"),
+            max_chars=2000,
+            height=130,
+        )
+        col_a, col_b = st.columns(2)
+        with col_a:
+            style = st.selectbox("Style", ["Cinematic", "Playful", "Pixel art", "Anime-inspired", "Minimal", "Surprise me"])
+        with col_b:
+            detail = st.selectbox("Duration" if kind == "Video" else "Platform", ["15 seconds", "30 seconds", "60 seconds"] if kind == "Video" else ["Browser (HTML5)", "Mobile", "Desktop"])
+        submitted = st.form_submit_button("✨ Generate and save project", type="primary", use_container_width=True)
+
+    if submitted:
+        if not prompt.strip():
+            st.warning("Describe your idea first.")
+        elif not get_api_key():
+            st.error("Set `OPENAI_API_KEY` in your environment or Streamlit secrets to generate projects.")
+            st.code('OPENAI_API_KEY="your-key-here"\nstreamlit run studio_app.py', language="bash")
         else:
-            st.info("No fenced HTML prototype was included. You can still download the game design plan above.")
+            with st.spinner("Creating your project…"):
+                try:
+                    response = requests.post(
+                        f"{API_URL}/chat/completions",
+                        headers={"Authorization": f"Bearer {get_api_key()}"},
+                        json={
+                            "model": MODEL,
+                            "messages": [
+                                {"role": "system", "content": "Be imaginative, specific, and easy to follow."},
+                                {"role": "user", "content": build_instructions(kind, prompt.strip(), style, detail)},
+                            ],
+                            "temperature": 0.8,
+                        },
+                        timeout=90,
+                    )
+                    response.raise_for_status()
+                    result = response.json()["choices"][0]["message"]["content"]
+                    if not isinstance(result, str) or not result.strip():
+                        raise ValueError("The AI service returned empty content.")
+                    creation = {
+                        "id": str(uuid4()), "kind": kind, "prompt": prompt.strip(), "style": style,
+                        "detail": detail, "result": result.strip(),
+                        "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                    }
+                    createlab_db.save_creation(creation)
+                    st.session_state.selected_creation_id = creation["id"]
+                    st.success("Project generated and saved to the database.")
+                    render_creation(creation)
+                except requests.exceptions.HTTPError as error:
+                    message = "The AI service rejected the request. Check the key, model access, and account limits."
+                    try:
+                        message = error.response.json().get("error", {}).get("message", message)
+                    except (ValueError, AttributeError):
+                        pass
+                    st.error(message)
+                except requests.exceptions.RequestException as error:
+                    st.error(f"Could not reach the AI service: {error}")
+                except (KeyError, IndexError, TypeError, ValueError) as error:
+                    st.error(f"Could not save or read the generated response: {error}")
+
+    recent = createlab_db.list_creations(limit=5)
+    if recent:
+        st.divider()
+        st.subheader("Recent projects")
+        cols = st.columns(min(len(recent), 3))
+        for index, project in enumerate(recent):
+            with cols[index % len(cols)]:
+                st.markdown(f"**{project['kind']}** · {project['created_at'][:10]}")
+                st.caption(project["prompt"][:110] + ("…" if len(project["prompt"]) > 110 else ""))
+                if st.button("Open in dashboard", key=f"open-{project['id']}"):
+                    st.session_state.selected_creation_id = project["id"]
+                    st.session_state.page = "Dashboard"
+                    st.rerun()
+
+else:
+    st.subheader("Project dashboard")
+    metric_cols = st.columns(3)
+    metric_cols[0].metric("All projects", counts["Video"] + counts["Game"])
+    metric_cols[1].metric("Video plans", counts["Video"])
+    metric_cols[2].metric("Game projects", counts["Game"])
+
+    filter_kind = st.selectbox("Filter projects", ["All", "Video", "Game"])
+    projects = createlab_db.list_creations(kind=None if filter_kind == "All" else filter_kind, limit=500)
+    if not projects:
+        st.info("No saved projects yet. Create your first one to see it here.")
+        if st.button("Create a project", type="primary"):
+            st.session_state.page = "Create"
+            st.rerun()
     else:
-        st.info("This is a storyboard and set of generation prompts—not a rendered video. A video-generation provider can be connected in a next step.")
+        labels = {
+            item["id"]: f"{item['kind']} · {item['prompt'][:75]}{'…' if len(item['prompt']) > 75 else ''} · {item['created_at'][:10]}"
+            for item in projects
+        }
+        valid_ids = list(labels)
+        default_id = st.session_state.get("selected_creation_id")
+        index = valid_ids.index(default_id) if default_id in valid_ids else 0
+        chosen_id = st.selectbox(
+            "Select a saved project", valid_ids,
+            index=index, format_func=lambda item_id: labels[item_id], key="dashboard_project_id",
+        )
+        selected = createlab_db.get_creation(chosen_id)
+        if selected:
+            render_creation(selected)
+            if st.button("Delete this project", type="secondary"):
+                createlab_db.delete_creation(chosen_id)
+                st.session_state.selected_creation_id = None
+                st.success("Project deleted.")
+                st.rerun()
 
 st.divider()
-st.markdown('<p class="note">CreateLab is a starter studio. AI outputs may need review; generated game code is not run on this site. Recent creations are stored only in this browser session.</p>', unsafe_allow_html=True)
+st.caption("Projects are stored in SQLite at `CREATELAB_DB_PATH` (default: `data/createlab.sqlite3`). This starter has no user accounts; projects share the configured database.")

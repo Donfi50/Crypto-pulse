@@ -1,12 +1,8 @@
 # Crypto-pulse
 
-Crypto-pulse is a starter project for experimenting with crypto market signals and paper trading. It also includes **CreateLab**, an experimental AI-assisted studio for video pre-production and game prototyping.
+Crypto-pulse is an experimental crypto market scanner with **CreateLab**, an AI-assisted video pre-production and game prototyping studio.
 
-## CreateLab: AI video and game studio
-
-CreateLab turns a text prompt into a video storyboard or a game concept. Game outputs may include a downloadable HTML prototype. It does not render video files or execute generated game code. Up to ten creations are kept in the active Streamlit session; they are not stored in a database.
-
-### Run locally
+## Run CreateLab
 
 ```bash
 python -m venv .venv
@@ -16,33 +12,20 @@ export OPENAI_API_KEY="your-key-here"  # PowerShell: $env:OPENAI_API_KEY="your-k
 streamlit run studio_app.py
 ```
 
-Optional configuration:
+Optional API configuration: `OPENAI_MODEL` (defaults to `gpt-4o-mini`) and `OPENAI_BASE_URL` (defaults to `https://api.openai.com/v1`).
 
-```bash
-export OPENAI_MODEL="gpt-4o-mini"
-export OPENAI_BASE_URL="https://api.openai.com/v1"
-```
+### Dashboard and project storage
 
-Keep API keys secret. Do not commit them to the repository.
+CreateLab now includes a dashboard for browsing and filtering saved projects, downloading plans, and deleting projects. Project metadata and generated text are stored in SQLite at `data/createlab.sqlite3` by default. Set `CREATELAB_DB_PATH` to choose another SQLite file. The database is initialized automatically; local database files are ignored by Git.
 
-### Deploy on Streamlit Community Cloud
+This starter has no login or user isolation: anyone using the same deployed app/database can see the same saved projects. Use a private deployment until authentication and per-user access controls are implemented. Streamlit hosting filesystems may be temporary; use a persistent disk or managed database for production deployments.
 
-1. Create a new app and select this repository, its `main` branch, and `studio_app.py` as the entry point.
-2. In the deployed app's settings, add `OPENAI_API_KEY` under **Secrets** using TOML syntax:
+Video generation currently produces storyboards and prompts, not rendered video files. Game HTML is downloadable but is not executed or previewed by the app. Review generated content and code before using it.
 
-   ```toml
-   OPENAI_API_KEY = "your-key-here"
-   ```
+## Deploy on Streamlit Community Cloud
 
-3. Redeploy. The app installs dependencies from `requirements.txt`.
-
-### Features
-
-- Video storyboard, visual direction, and shot-by-shot text-to-video prompts.
-- Game design brief and optional HTML prototype download.
-- Up to ten recent session creations with Markdown plan downloads.
-- OpenAI-compatible chat-completions endpoint configuration.
+Select this repository, the `main` branch, and `studio_app.py` as the entry point. Add `OPENAI_API_KEY` in app settings under **Secrets**. For reliable long-term project storage, configure a persistent volume/database; the default local SQLite file may not persist across redeploys.
 
 ## Crypto scanner
 
-Install dependencies with `pip install -r requirements.txt`, then run `python main.py`. See `.env.example` for market scanner configuration. The scanner is experimental and does not provide financial advice.
+Install dependencies with `pip install -r requirements.txt` and run `python main.py`. Scanner settings are described in `.env.example`. The scanner is experimental and does not provide financial advice.

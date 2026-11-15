@@ -1,31 +1,32 @@
 # CreateLab
 
-CreateLab is a Streamlit prototype in `studio_app.py` that uses an OpenAI-compatible chat-completions API to produce creative plans.
+CreateLab is a Streamlit app for AI-assisted video pre-production and game concept prototyping.
 
-## Capabilities and limitations
+## Features
 
-- **Video:** generates storyboards, visual direction, and text-to-video prompts. It does not render video files.
-- **Game:** generates game design notes and may include a single fenced HTML prototype block. Users can download that file; the app does not execute or preview generated HTML.
-- **History:** stores up to ten creations in Streamlit's active session only. It is not persistent project storage or user account history.
-- **Exports:** creation plans download as Markdown; an HTML prototype can be downloaded separately if present.
+- Generate a timed video storyboard or game design and optional HTML prototype.
+- Dashboard to browse, filter, open, download, and delete saved projects.
+- SQLite persistence for generated project prompts and results.
+- Configurable OpenAI-compatible chat-completions endpoint.
 
-## Local setup
+## Setup
 
 ```bash
 pip install -r requirements.txt
 export OPENAI_API_KEY="your-key-here"
-# Optional settings:
+# Optional:
 export OPENAI_MODEL="gpt-4o-mini"
 export OPENAI_BASE_URL="https://api.openai.com/v1"
+export CREATELAB_DB_PATH="data/createlab.sqlite3"
 streamlit run studio_app.py
 ```
 
-On Windows PowerShell, set the key with `$env:OPENAI_API_KEY="your-key-here"`. Never commit credentials.
+On Windows PowerShell, set the API key with `$env:OPENAI_API_KEY="your-key-here"`. Never commit credentials.
 
-For Streamlit Community Cloud, select `studio_app.py` as the app entry point and add a secret such as:
+The SQLite database is automatically initialized at `data/createlab.sqlite3` by default. Set `CREATELAB_DB_PATH` to a different file path if needed. Run database unit tests with `python -m unittest discover -s tests`.
 
-```toml
-OPENAI_API_KEY = "your-key-here"
-```
+## Important deployment and security notes
 
-Review generated outputs and code before using them. Connecting a video-generation provider or persistent user/project storage requires additional services and configuration.
+There are no user accounts yet, so projects are shared by all visitors using the same database. Do not deploy this publicly with private user content until authentication and authorization are added. SQLite persistence depends on durable storage; hosted ephemeral filesystems can lose database data on restart or redeploy. Configure a persistent disk or managed database for production.
+
+The app creates text plans and prompts; it does not render video files. Generated HTML is offered as a download only and is never executed by the app. Review generated content and code before use.
