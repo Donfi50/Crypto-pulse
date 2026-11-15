@@ -1,64 +1,31 @@
-# Crypto-pulse
+# CreateLab
 
-Crypto-pulse is a starter project for building a crypto trading strategy with AI-inspired signal generation.
+CreateLab is a Streamlit prototype in `studio_app.py` that uses an OpenAI-compatible chat-completions API to produce creative plans.
 
-The project is intentionally simple and modular so you can extend it with:
-- real market data collection
-- technical indicators
-- ML-based prediction models
-- backtesting
-- bot execution logic
-- paper trading or live trading integration
+## Capabilities and limitations
 
-## Project goals
-- Collect cryptocurrency price data
-- Generate trade signals based on price momentum
-- Provide a clean starting point for experiments
-- Keep the project easy to run and extend
+- **Video:** generates storyboards, visual direction, and text-to-video prompts. It does not render video files.
+- **Game:** generates game design notes and may include a single fenced HTML prototype block. Users can download that file; the app does not execute or preview generated HTML.
+- **History:** stores up to ten creations in Streamlit's active session only. It is not persistent project storage or user account history.
+- **Exports:** creation plans download as Markdown; an HTML prototype can be downloaded separately if present.
 
-## Current structure
-- `main.py` runs the crypto signal scanner
-- `crypto_pulse/` contains the market data, strategy, and reporting modules
-- `studio_app.py` is an experimental AI studio for video planning and game concept generation
-
-## Run the crypto scanner
-
-1. Create a virtual environment
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-```
-
-2. Install dependencies
+## Local setup
 
 ```bash
 pip install -r requirements.txt
-```
-
-3. Run the scanner
-
-```bash
-python main.py
-```
-
-## Run the creative studio
-
-The Streamlit app creates video storyboards and game concept documents from a text prompt. It does not render video files or execute generated game code automatically.
-
-1. Install the requirements above.
-2. Set `OPENAI_API_KEY` (or use a Streamlit secret).
-3. Optionally set `OPENAI_MODEL` and `OPENAI_BASE_URL`.
-4. Launch the app:
-
-```bash
+export OPENAI_API_KEY="your-key-here"
+# Optional settings:
+export OPENAI_MODEL="gpt-4o-mini"
+export OPENAI_BASE_URL="https://api.openai.com/v1"
 streamlit run studio_app.py
 ```
 
-The app includes a polished landing page, recent project history, and download tools for Markdown plans and HTML game prototype blocks when provided by the model.
+On Windows PowerShell, set the key with `$env:OPENAI_API_KEY="your-key-here"`. Never commit credentials.
 
-## Environment variables
-The crypto scanner can use the `.env` file described in `.env.example`. The creative studio reads API settings from environment variables or Streamlit secrets.
+For Streamlit Community Cloud, select `studio_app.py` as the app entry point and add a secret such as:
 
-## Notes
-The crypto scanner is a starter implementation and does not provide financial advice. The creative studio is a prototype for ideation and concept generation. Any external rendering or deployment should be connected separately.
+```toml
+OPENAI_API_KEY = "your-key-here"
+```
+
+Review generated outputs and code before using them. Connecting a video-generation provider or persistent user/project storage requires additional services and configuration.

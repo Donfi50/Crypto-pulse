@@ -1,24 +1,5 @@
-# CreateLab starter
-
-`studio_app.py` adds a modern Streamlit creative studio to Crypto-pulse. It uses an OpenAI-compatible chat-completions API to generate video and game concepts.
-
-## What it can do
-- **Video:** produce a timed storyboard, visual direction, and shot-by-shot text-to-video prompts.
-- **Game:** generate gameplay loops, level ideas, and self-contained HTML prototype blocks when the model includes them.
-- Keep up to ten recent creations in the current session and let the user reopen them from the sidebar.
-- Download each creation as Markdown and optionally download extracted HTML game prototypes.
-
-## Configure
-
-```bash
-pip install -r requirements.txt
-export OPENAI_API_KEY="your-key-here"
-# Optional:
-export OPENAI_MODEL="gpt-4o-mini"
-export OPENAI_BASE_URL="https://api.openai.com/v1"
-streamlit run studio_app.py
-```
-
-On Windows PowerShell, set the key with `$env:OPENAI_API_KEY="your-key-here"`. In Streamlit Community Cloud, add the key in app secrets instead. Never commit a real key.
-
-This is a first web-app scaffold, not a media-rendering pipeline. The next step would be to connect a real video-generation provider and persistent storage.
+numpy==2.0.2
+pandas==2.2.3
+requests==2.32.3
+python-dotenv==1.0.1
+streamlit>=1.40,<2
